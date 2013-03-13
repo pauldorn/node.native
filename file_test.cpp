@@ -10,7 +10,7 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    fs::open("/home/pauldorn/workspace/node.native/webserver", fs::read_only, 0600, [] (fs::file_handle fd, error e){
+    fs::open("./webserver", fs::read_only, 0600, [] (fs::file_handle fd, error e){
         long * bytesRead = new long(0);
         if (e) {
             std::cout << "Error reading file" << e;
