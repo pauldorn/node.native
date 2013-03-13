@@ -10,20 +10,41 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    // read contents from source and then write it to destination.
-    file::read(argv[1], [=](const std::string& str, error e){
-        if(e) {
-            std::cout << "file::read() failed: " << e.str() << std::endl;
+    fs::open("/home/pauldorn/workspace/node.native/webserver", fs::read_only, 0600, [] (fs::file_handle fd, error e){
+        long * bytesRead = new long(0);
+        if (e) {
+            std::cout << "Error reading file" << e;
+            exit(1);
         } else {
-            std::cout << str.length() << " bytes read from: " << argv[1] << std::endl;
-            file::write(argv[2], str, [=](int nwritten, error e){
-                if(e) {
-                    std::cout << "file::write() failed: " << e.str() << std::endl;
-                } else {
-                    std::cout << nwritten << " bytes written to: " << argv[2] << std::endl;
-                }
-            });
+            std::cout << "Reading file...\n";
+            auto readHandlerShared = std::make_shared<std::function<void(std::string str, error e)>>();
+            std::function<void(std::string str, error e)> readHandler = [=] (std::string str, error e) mutable {
+                    std::cout << "Got data " << str.length() << "\n";
+                    if (str.length() > 0) {
+                        *bytesRead += str.length();
+                        std::cout << "Bytes read: " << *bytesRead << "\n";
+                        if (*readHandlerShared) {
+                           // *readHandlerShared(std::string("TEST"), error(5));
+                            fs::read(fd, 1024, *bytesRead, *readHandlerShared);
+                        } else {
+                            std::cout << "Read handler is invalid\n";
+                        }
+                    } else {
+                        // Done reading file:
+                        delete bytesRead;
+                        readHandlerShared.reset();
+                    }
+            };
+            *readHandlerShared = readHandler;
+            std::cout << "Test read handler in parent function...\n";
+            if(readHandler) {
+                fs::read(fd, 1024, 0, readHandler);
+            } else {
+                std::cout << "Read handler is invalid\n";
+            }
+
         }
+        std::cout << "Exited function\n";
     });
 
     return run();
